@@ -1,0 +1,33 @@
+import pandas as pd
+from zipfile import BadZipFile
+
+file_path = 'analytic_data2011.xlsx'  # Update this with your actual file path
+output_file_path = 'Cleaned_analytic_data2011.xlsx'
+
+try:
+    # Attempt to load the Excel file
+    df = pd.read_excel(file_path, engine='openpyxl')
+
+    # Remove columns containing "CI high" or "CI low" in the header
+    df = df.loc[:, ~df.columns.str.contains('CI high|CI low', case=False, na=False)]
+
+    # Drop rows that are completely empty
+    df.dropna(how='all', inplace=True)
+
+    # Drop columns that are completely empty
+    df.dropna(axis=1, how='all', inplace=True)
+
+    # Fill missing values with a placeholder (you can customize this as needed)
+    df.fillna('N/A', inplace=True)
+
+    # Save the cleaned DataFrame back to an Excel file
+    df.to_excel(output_file_path, index=False, engine='openpyxl')
+
+    print(f"Cleaned file saved as {output_file_path}")
+
+except BadZipFile:
+    print("Error: The file appears to be corrupted or is not a valid .xlsx file.")
+except FileNotFoundError:
+    print("Error: The file was not found. Please check the file path.")
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")
