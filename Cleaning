@@ -1,26 +1,41 @@
 import pandas as pd
 from zipfile import BadZipFile
 
-file_path = 'analytic_data2011.xlsx'  # Update this with your actual file path
-output_file_path = 'Cleaned_analytic_data2011.xlsx'
+# File paths
+data_file_path = 'analytic_data2017.xlsx'
+example_file_path = '2024_Example_Data.xlsx'
+output_file_path = 'Cleaned_analytic_data2017.xlsx'
 
 try:
-    # Attempt to load the Excel file
-    df = pd.read_excel(file_path, engine='openpyxl')
+    # Load the main data file
+    df = pd.read_excel(data_file_path, engine='openpyxl')
 
-    # Remove columns containing "CI high" or "CI low" in the header
-    df = df.loc[:, ~df.columns.str.contains('CI high|CI low', case=False, na=False)]
+    # Load the example file for context on color coding
+    example_df = pd.read_excel(example_file_path, engine='openpyxl')
 
-    # Drop rows that are completely empty
-    df.dropna(how='all', inplace=True)
+    # Remove the first row
+    df.drop(index=df.index[0], inplace=True)
 
-    # Drop columns that are completely empty
-    df.dropna(axis=1, how='all', inplace=True)
+    # Remove the third row with 'US' as the county
+    df = df[df.iloc[:, 0] != 'US']
 
-    # Fill missing values with a placeholder (you can customize this as needed)
-    df.fillna('N/A', inplace=True)
+    # Set the header row (v_ codes) as the actual header
+    df.columns = df.iloc[0]
+    df = df[1:]
 
-    # Save the cleaned DataFrame back to an Excel file
+    # Remove columns containing "CI high", "CI low", "Numerator", and "Denominator"
+    df = df.loc[:, ~df.columns.str.contains('CI high|CI low|Numerator|Denominator', case=False, na=False)]
+
+    # Identify columns based on the example dataset
+    green_columns = example_df.loc[example_df['Color'] == 'Green', 'Column Name'].tolist()
+    brown_columns = example_df.loc[example_df['Color'] == 'Brown', 'Column Name'].tolist()
+    blue_columns = example_df.loc[example_df['Color'] == 'Blue', 'Column Name'].tolist()
+
+    # Keep only green and blue columns (if present)
+    keep_columns = green_columns + blue_columns
+    df = df[keep_columns]
+
+    # Save the cleaned DataFrame to a new Excel file
     df.to_excel(output_file_path, index=False, engine='openpyxl')
 
     print(f"Cleaned file saved as {output_file_path}")
