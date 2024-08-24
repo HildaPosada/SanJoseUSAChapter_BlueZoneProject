@@ -1,17 +1,48 @@
 import pandas as pd
-from zipfile import BadZipFile
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 
 # File paths
 data_file_path = 'analytic_data2017.xlsx'
 example_file_path = '2024_Example_Data.xlsx'
 output_file_path = 'Cleaned_analytic_data2017.xlsx'
 
+def get_column_colors(ws, header_row=1):
+    """
+    Function to get the background color of each column in the header row.
+    Returns a dictionary with column letters as keys and their corresponding color as values.
+    """
+    column_colors = {}
+    for col in ws.iter_cols(min_row=header_row, max_row=header_row):
+        col_letter = get_column_letter(col[0].column)
+        color = col[0].fill.start_color.rgb if col[0].fill.start_color.rgb is not None else None
+        column_colors[col_letter] = color
+    return column_colors
+
+def filter_columns_by_color(df, colors_to_keep):
+    """
+    Filters the DataFrame columns based on the colors provided in the colors_to_keep list.
+    """
+    # Load the workbook and get the first sheet
+    wb = load_workbook(example_file_path, data_only=True)
+    ws = wb.active
+    
+    # Get the color of each column in the example sheet
+    column_colors = get_column_colors(ws)
+    
+    # Find the columns in the DataFrame that correspond to the colors we want to keep
+    keep_columns = []
+    for col in df.columns:
+        col_letter = get_column_letter(df.columns.get_loc(col) + 1)
+        if column_colors.get(col_letter) in colors_to_keep:
+            keep_columns.append(col)
+    
+    # Return DataFrame with only the desired columns
+    return df[keep_columns]
+
 try:
     # Load the main data file
     df = pd.read_excel(data_file_path, engine='openpyxl')
-
-    # Load the example file for context on color coding
-    example_df = pd.read_excel(example_file_path, engine='openpyxl')
 
     # Remove the first row
     df.drop(index=df.index[0], inplace=True)
@@ -26,23 +57,20 @@ try:
     # Remove columns containing "CI high", "CI low", "Numerator", and "Denominator"
     df = df.loc[:, ~df.columns.str.contains('CI high|CI low|Numerator|Denominator', case=False, na=False)]
 
-    # Identify columns based on the example dataset
-    green_columns = example_df.loc[example_df['Color'] == 'Green', 'Column Name'].tolist()
-    brown_columns = example_df.loc[example_df['Color'] == 'Brown', 'Column Name'].tolist()
-    blue_columns = example_df.loc[example_df['Color'] == 'Blue', 'Column Name'].tolist()
+    # Define the colors to keep (Green and Blue)
+    colors_to_keep = ['FF8ED973', 'FF44B3E1']  # Green and Blue
 
-    # Keep only green and blue columns (if present)
-    keep_columns = green_columns + blue_columns
-    df = df[keep_columns]
+    # Filter the DataFrame columns by color
+    df = filter_columns_by_color(df, colors_to_keep)
 
     # Save the cleaned DataFrame to a new Excel file
     df.to_excel(output_file_path, index=False, engine='openpyxl')
 
     print(f"Cleaned file saved as {output_file_path}")
 
-except BadZipFile:
-    print("Error: The file appears to be corrupted or is not a valid .xlsx file.")
 except FileNotFoundError:
     print("Error: The file was not found. Please check the file path.")
+except KeyError as e:
+    print(f"Error: The column '{e}' was not found in the dataset. Please check the column names.")
 except Exception as e:
     print(f"An unexpected error occurred: {e}")
